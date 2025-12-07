@@ -177,6 +177,8 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
   
   const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
   console.log(`Getting Bot Framework token from tenant: ${tenantId}`);
+  console.log(`Token URL: ${tokenUrl}`);
+  console.log(`Client ID: ${clientId.substring(0, 8)}...`);
   
   const body = new URLSearchParams({
     grant_type: "client_credentials",
@@ -185,23 +187,45 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
     scope: "https://api.botframework.com/.default",
   });
   
-  const resp = await axios.post(tokenUrl, body, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
-  
-  const token = resp.data.access_token as string;
-  
-  // Decode and cache token
-  const payload = decodeJwtPayload(token);
-  if (payload && payload.exp) {
-    tokenCacheByTenant.set(tenantId, {
-      token,
-      expMs: payload.exp * 1000
+  try {
+    console.log('Making token request...');
+    const resp = await axios.post(tokenUrl, body, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      timeout: 10000,
     });
-    console.log(`Token cached for tenant ${tenantId} until:`, new Date(payload.exp * 1000).toISOString());
+    
+    console.log('Token request successful, status:', resp.status);
+    const token = resp.data.access_token as string;
+    
+    if (!token) {
+      throw new Error('No access_token in response');
+    }
+    
+    console.log('Token received, length:', token.length);
+    
+    // Decode and cache token
+    const payload = decodeJwtPayload(token);
+    if (payload && payload.exp) {
+      tokenCacheByTenant.set(tenantId, {
+        token,
+        expMs: payload.exp * 1000
+      });
+      console.log(`Token cached for tenant ${tenantId} until:`, new Date(payload.exp * 1000).toISOString());
+    }
+    
+    return token;
+  } catch (error: any) {
+    console.error('❌ Token request failed:');
+    console.error('Error message:', error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+    }
+    if (error.request) {
+      console.error('Request made but no response received');
+    }
+    throw error;
   }
-  
-  return token;
 }
 
 // Helper function to send activity to Bot Framework Connector
@@ -210,22 +234,41 @@ async function sendToConversation(activity: any, token: string, responseActivity
   const convId = activity.conversation.id;
   const url = `${serviceUrl}/v3/conversations/${encodeURIComponent(convId)}/activities`;
   
-  console.log('Sending to:', url);
+  console.log('📨 Sending response to Bot Framework Connector');
+  console.log('Service URL:', serviceUrl);
+  console.log('Conversation ID:', convId);
+  console.log('URL:', url);
+  console.log('Response activity type:', responseActivity.type);
+  console.log('Response has attachments:', !!responseActivity.attachments);
   
-  const response = await axios.post(url, responseActivity, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    timeout: 10000,
-    validateStatus: () => true,
-  });
-  
-  if (response.status < 200 || response.status >= 300) {
-    console.error("❌ Non-2xx response from Bot Framework Connector:");
-    console.error("Status:", response.status);
-    console.error("Response body:", JSON.stringify(response.data, null, 2));
-    throw new Error(`Bot Framework Connector returned status ${response.status}`);
+  try {
+    const response = await axios.post(url, responseActivity, {
+      headers: {
+        Authorization: `Bearer ${token.substring(0, 20)}...`,
+        "Content-Type": "application/json",
+      },
+      timeout: 10000,
+      validateStatus: () => true,
+    });
+    
+    console.log('Bot Framework response status:', response.status);
+    
+    if (response.status < 200 || response.status >= 300) {
+      console.error("❌ Non-2xx response from Bot Framework Connector:");
+      console.error("Status:", response.status);
+      console.error("Response body:", JSON.stringify(response.data, null, 2));
+      throw new Error(`Bot Framework Connector returned status ${response.status}`);
+    }
+    
+    console.log('✅ Successfully sent to Bot Framework Connector');
+  } catch (error: any) {
+    console.error('❌ Error sending to Bot Framework Connector:');
+    console.error('Error message:', error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status);
+      console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+    }
+    throw error;
   }
 }
 
