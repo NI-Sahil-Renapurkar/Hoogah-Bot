@@ -33,7 +33,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log('Incoming activity - serviceUrl:', activity.serviceUrl);
 
   // ACK immediately (Bot Framework requirement)
-  res.sendStatus(200);
+  res.status(200).send('OK');
 
   // Process in background (async)
   void (async () => {
