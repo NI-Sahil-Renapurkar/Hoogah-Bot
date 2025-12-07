@@ -1,0 +1,60 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Question 1",
+      "size": "Medium",
+      "weight": "Bolder",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "What excites you most at events?",
+      "size": "Large",
+      "wrap": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Submit",
+      "title": "Networking",
+      "data": {
+        "type": "answer",
+        "questionId": 1,
+        "value": "Networking"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Learning new things",
+      "data": {
+        "type": "answer",
+        "questionId": 1,
+        "value": "Learning new things"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Meeting new people",
+      "data": {
+        "type": "answer",
+        "questionId": 1,
+        "value": "Meeting new people"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Deep conversations",
+      "data": {
+        "type": "answer",
+        "questionId": 1,
+        "value": "Deep conversations"
+      }
+    }
+  ],
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json"
+}
+

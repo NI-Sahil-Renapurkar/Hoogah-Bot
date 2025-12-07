@@ -1,0 +1,31 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Welcome to Hoogah! 🎉",
+      "size": "Large",
+      "weight": "Bolder",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "Let's find your pair.",
+      "size": "Medium",
+      "wrap": true,
+      "spacing": "Small"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Submit",
+      "title": "Start",
+      "data": {
+        "type": "start"
+      }
+    }
+  ],
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json"
+}
+

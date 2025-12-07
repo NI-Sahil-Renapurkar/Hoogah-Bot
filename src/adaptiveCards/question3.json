@@ -1,0 +1,60 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Question 3",
+      "size": "Medium",
+      "weight": "Bolder",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "How experienced are you in your field?",
+      "size": "Large",
+      "wrap": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Submit",
+      "title": "Beginner",
+      "data": {
+        "type": "answer",
+        "questionId": 3,
+        "value": "Beginner"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Intermediate",
+      "data": {
+        "type": "answer",
+        "questionId": 3,
+        "value": "Intermediate"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Advanced",
+      "data": {
+        "type": "answer",
+        "questionId": 3,
+        "value": "Advanced"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Expert",
+      "data": {
+        "type": "answer",
+        "questionId": 3,
+        "value": "Expert"
+      }
+    }
+  ],
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json"
+}
+

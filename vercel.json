@@ -1,0 +1,23 @@
+{
+  "version": 2,
+  "buildCommand": "npm run build",
+  "routes": [
+    {
+      "src": "/api/messages",
+      "dest": "/api/messages.ts"
+    },
+    {
+      "src": "/chat",
+      "dest": "/api/chat.ts"
+    },
+    {
+      "src": "/",
+      "dest": "/api/health.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
+  ]
+}
+

@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hoogah Bot - Chat Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 900px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.bot {
+            justify-content: flex-start;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 18px;
+            border-radius: 18px;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.bot .message-bubble {
+            background: white;
+            color: #333;
+            border: 1px solid #e0e0e0;
+            border-bottom-left-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .adaptive-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-width: 100%;
+        }
+
+        .adaptive-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+
+        .adaptive-card p {
+            color: #666;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .card-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-align: center;
+        }
+
+        .card-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .card-button:active {
+            transform: translateY(0);
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px 18px;
+            border: 2px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        .input-area input:focus {
+            border-color: #667eea;
+        }
+
+        .input-area button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .input-area button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .input-area button:active {
+            transform: translateY(0);
+        }
+
+        .input-area button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .status.error {
+            color: #e74c3c;
+        }
+
+        .status.success {
+            color: #27ae60;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 12px 18px;
+        }
+
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #999;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.7;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            padding: 10px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e0e0e0;
+            flex-wrap: wrap;
+        }
+
+        .quick-action-btn {
+            background: white;
+            border: 1px solid #e0e0e0;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: #667eea;
+        }
+
+        .quick-action-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Hoogah Bot</h1>
+            <p>Group Match Prototype - Let's find your perfect match!</p>
+        </div>
+        
+        <div class="chat-area" id="chatArea">
+            <div class="message bot">
+                <div class="message-bubble">
+                    👋 Welcome! Send "Hi" to get started, or use the quick actions below.
+                </div>
+            </div>
+        </div>
+
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="sendQuickMessage('Hi')">Say Hi</button>
+            <button class="quick-action-btn" onclick="sendStartAction()">Start Questionnaire</button>
+            <button class="quick-action-btn" onclick="clearChat()">Clear Chat</button>
+        </div>
+
+        <div class="input-area">
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Type your message here..." 
+                onkeypress="handleKeyPress(event)"
+            >
+            <button id="sendButton" onclick="sendMessage()">Send</button>
+        </div>
+
+        <div class="status" id="status"></div>
+    </div>
+
+    <script>
+        const chatArea = document.getElementById('chatArea');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const status = document.getElementById('status');
+
+        function showStatus(message, type = '') {
+            status.textContent = message;
+            status.className = 'status ' + type;
+            setTimeout(() => {
+                status.textContent = '';
+                status.className = 'status';
+            }, 3000);
+        }
+
+        function addMessage(text, isUser = false) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isUser ? 'user' : 'bot'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = text;
+            
+            messageDiv.appendChild(bubble);
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function addTypingIndicator() {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            messageDiv.id = 'typing-indicator';
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'typing-indicator';
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'typing-dot';
+                typingDiv.appendChild(dot);
+            }
+            
+            bubble.appendChild(typingDiv);
+            messageDiv.appendChild(bubble);
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typing-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        function renderAdaptiveCard(cardContent) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message bot';
+            
+            const cardDiv = document.createElement('div');
+            cardDiv.className = 'adaptive-card';
+            
+            // Render card body
+            if (cardContent.body) {
+                cardContent.body.forEach(item => {
+                    if (item.type === 'TextBlock') {
+                        const element = document.createElement(item.size === 'Large' ? 'h3' : 'p');
+                        element.textContent = item.text;
+                        if (item.size === 'Large' && item.weight === 'Bolder') {
+                            element.style.fontSize = '20px';
+                            element.style.fontWeight = 'bold';
+                            element.style.marginBottom = '10px';
+                        }
+                        cardDiv.appendChild(element);
+                    }
+                });
+            }
+            
+            // Render card actions
+            if (cardContent.actions && cardContent.actions.length > 0) {
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'card-actions';
+                
+                cardContent.actions.forEach(action => {
+                    if (action.type === 'Action.Submit') {
+                        const button = document.createElement('button');
+                        button.className = 'card-button';
+                        button.textContent = action.title;
+                        button.onclick = () => {
+                            sendAction(action.data);
+                        };
+                        actionsDiv.appendChild(button);
+                    } else if (action.type === 'Action.OpenUrl') {
+                        const button = document.createElement('button');
+                        button.className = 'card-button';
+                        button.textContent = action.title;
+                        button.onclick = () => {
+                            window.open(action.url, '_blank');
+                        };
+                        actionsDiv.appendChild(button);
+                    }
+                });
+                
+                cardDiv.appendChild(actionsDiv);
+            }
+            
+            messageDiv.appendChild(cardDiv);
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const text = messageInput.value.trim();
+            if (!text) return;
+
+            addMessage(text, true);
+            messageInput.value = '';
+            sendButton.disabled = true;
+            addTypingIndicator();
+
+            try {
+                const response = await fetch('http://localhost:3978/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ text: text })
+                });
+
+                const data = await response.json();
+                removeTypingIndicator();
+
+                if (data.success && data.messages) {
+                    data.messages.forEach(msg => {
+                        if (msg.attachments && msg.attachments.length > 0) {
+                            msg.attachments.forEach(attachment => {
+                                if (attachment.contentType === 'application/vnd.microsoft.card.adaptive') {
+                                    renderAdaptiveCard(attachment.content);
+                                }
+                            });
+                        } else if (msg.text) {
+                            addMessage(msg.text, false);
+                        }
+                    });
+                    
+                    if (data.messages.length === 0) {
+                        addMessage('Bot received your message but sent no response.', false);
+                    }
+                } else {
+                    addMessage('Error: ' + (data.error || 'Unknown error'), false);
+                    showStatus('Error sending message', 'error');
+                }
+            } catch (error) {
+                removeTypingIndicator();
+                addMessage('Failed to connect to bot. Make sure the bot is running on port 3978.', false);
+                showStatus('Connection error', 'error');
+                console.error('Error:', error);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        async function sendAction(actionData) {
+            addMessage('→ ' + (actionData.value || actionData.type || 'Action'), true);
+            sendButton.disabled = true;
+            addTypingIndicator();
+
+            try {
+                const response = await fetch('http://localhost:3978/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ value: actionData })
+                });
+
+                const data = await response.json();
+                removeTypingIndicator();
+
+                if (data.success && data.messages) {
+                    data.messages.forEach(msg => {
+                        if (msg.attachments && msg.attachments.length > 0) {
+                            msg.attachments.forEach(attachment => {
+                                if (attachment.contentType === 'application/vnd.microsoft.card.adaptive') {
+                                    renderAdaptiveCard(attachment.content);
+                                }
+                            });
+                        } else if (msg.text) {
+                            addMessage(msg.text, false);
+                        }
+                    });
+                } else {
+                    addMessage('Error: ' + (data.error || 'Unknown error'), false);
+                    showStatus('Error sending action', 'error');
+                }
+            } catch (error) {
+                removeTypingIndicator();
+                addMessage('Failed to connect to bot.', false);
+                showStatus('Connection error', 'error');
+                console.error('Error:', error);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        function sendQuickMessage(text) {
+            messageInput.value = text;
+            sendMessage();
+        }
+
+        function sendStartAction() {
+            sendAction({ type: 'start' });
+        }
+
+        function clearChat() {
+            chatArea.innerHTML = '<div class="message bot"><div class="message-bubble">👋 Chat cleared! Send "Hi" to start again.</div></div>';
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Focus input on load
+        messageInput.focus();
+    </script>
+</body>
+</html>
+
+
+
+
+

@@ -1,0 +1,60 @@
+{
+  "type": "AdaptiveCard",
+  "version": "1.5",
+  "body": [
+    {
+      "type": "TextBlock",
+      "text": "Question 2",
+      "size": "Medium",
+      "weight": "Bolder",
+      "wrap": true
+    },
+    {
+      "type": "TextBlock",
+      "text": "What is your communication style?",
+      "size": "Large",
+      "wrap": true,
+      "spacing": "Medium"
+    }
+  ],
+  "actions": [
+    {
+      "type": "Action.Submit",
+      "title": "Direct",
+      "data": {
+        "type": "answer",
+        "questionId": 2,
+        "value": "Direct"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Casual",
+      "data": {
+        "type": "answer",
+        "questionId": 2,
+        "value": "Casual"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Friendly",
+      "data": {
+        "type": "answer",
+        "questionId": 2,
+        "value": "Friendly"
+      }
+    },
+    {
+      "type": "Action.Submit",
+      "title": "Reserved",
+      "data": {
+        "type": "answer",
+        "questionId": 2,
+        "value": "Reserved"
+      }
+    }
+  ],
+  "$schema": "http://adaptivecards.io/schemas/adaptive-card.json"
+}
+
