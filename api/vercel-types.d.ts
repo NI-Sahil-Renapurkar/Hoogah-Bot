@@ -10,10 +10,9 @@ declare module '@vercel/node' {
   }
   
   export interface VercelResponse extends ServerResponse {
-    status(code: number): VercelResponse;
-    send(body?: any): VercelResponse;
-    json(body: any): VercelResponse;
-    end(): VercelResponse;
+    status(code: number): this;
+    send(body?: any): this;
+    json(body: any): this;
   }
 }
 
