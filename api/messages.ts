@@ -85,6 +85,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Trigger app.on("message") handlers via router
       const router = (teamsApp as any).router;
+      console.log('Router exists:', !!router);
+      console.log('Router type:', typeof router);
       
       if (router && typeof router.select === 'function') {
         const routes = router.select(activity);
@@ -92,12 +94,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         
         if (routes.length > 0) {
           for (const route of routes) {
+            console.log('Calling route handler');
             await route(context);
+          }
+        } else {
+          console.warn('No routes selected for activity type:', activity.type);
+        }
+      } else {
+        console.warn('Router not available or select function not found');
+        // Fallback: try to call handlers directly
+        if (router && router.routes) {
+          console.log('Trying fallback: router.routes');
+          const messageRoute = router.routes.find((r: any) => r.name === "message");
+          if (messageRoute) {
+            const handlers = messageRoute.handlers || messageRoute._handlers || messageRoute.callbacks || [];
+            console.log('Found handlers:', handlers.length);
+            for (const handler of handlers) {
+              try {
+                await handler(context);
+              } catch (e: any) {
+                console.error("Handler error:", e.message);
+              }
+            }
           }
         }
       }
     } catch (error: any) {
       console.error('Error processing activity:', error);
+      console.error('Error stack:', error.stack);
     }
   })();
 }
