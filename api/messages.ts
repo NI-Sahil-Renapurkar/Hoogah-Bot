@@ -8,6 +8,8 @@ let appInitialized = false;
 async function initializeApp() {
   if (!appInitialized) {
     // Don't call app.start() in serverless - just initialize
+    // The app should already have handlers registered from src/app.ts
+    console.log('Initializing app, router exists:', !!(app as any).router);
     appInitialized = true;
   }
   return app;
@@ -45,6 +47,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const context: any = {
         activity,
         send: async (response: any) => {
+          console.log('📤 context.send() called!');
+          console.log('Response type:', response.type);
+          console.log('Response attachments:', response.attachments?.length || 0);
           try {
             if (!clientId || !clientSecret) {
               throw new Error('CLIENT_ID and CLIENT_SECRET must be set');
@@ -73,12 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             await sendToConversation(activity, token, responseActivity);
             console.log('✅ Response sent successfully');
           } catch (error: any) {
-            console.error('Send error:', error.message);
+            console.error('❌ Send error:', error.message);
             if (error.response) {
               console.error('Status:', error.response.status);
               console.error('WWW-Authenticate:', error.response.headers?.["www-authenticate"]);
               console.error('Data:', JSON.stringify(error.response.data, null, 2));
             }
+            console.error('Error stack:', error.stack);
           }
         },
       };
@@ -86,38 +92,56 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // Trigger app.on("message") handlers via router
       const router = (teamsApp as any).router;
       console.log('Router exists:', !!router);
-      console.log('Router type:', typeof router);
+      console.log('Activity type:', activity.type);
+      console.log('Activity text:', activity.text);
       
+      let handlerCalled = false;
+      
+      // Try router.select() first
       if (router && typeof router.select === 'function') {
         const routes = router.select(activity);
         console.log('Routes selected:', routes.length);
         
         if (routes.length > 0) {
           for (const route of routes) {
-            console.log('Calling route handler');
+            console.log('Calling route handler via router.select()');
             await route(context);
+            handlerCalled = true;
           }
         } else {
           console.warn('No routes selected for activity type:', activity.type);
         }
-      } else {
-        console.warn('Router not available or select function not found');
-        // Fallback: try to call handlers directly
-        if (router && router.routes) {
-          console.log('Trying fallback: router.routes');
-          const messageRoute = router.routes.find((r: any) => r.name === "message");
-          if (messageRoute) {
-            const handlers = messageRoute.handlers || messageRoute._handlers || messageRoute.callbacks || [];
-            console.log('Found handlers:', handlers.length);
-            for (const handler of handlers) {
-              try {
-                await handler(context);
-              } catch (e: any) {
-                console.error("Handler error:", e.message);
-              }
+      }
+      
+      // Fallback: try to call handlers directly from router.routes
+      if (!handlerCalled && router && router.routes) {
+        console.log('Trying fallback: router.routes, total routes:', router.routes.length);
+        const messageRoute = router.routes.find((r: any) => r.name === "message");
+        if (messageRoute) {
+          console.log('Found message route');
+          const handlers = messageRoute.handlers || messageRoute._handlers || messageRoute.callbacks || [];
+          console.log('Found handlers:', handlers.length);
+          for (const handler of handlers) {
+            try {
+              console.log('Calling handler directly');
+              await handler(context);
+              handlerCalled = true;
+            } catch (e: any) {
+              console.error("Handler error:", e.message);
+              console.error("Handler error stack:", e.stack);
             }
           }
+        } else {
+          console.warn('Message route not found in router.routes');
+          console.log('Available routes:', router.routes.map((r: any) => r.name || 'unnamed'));
         }
+      }
+      
+      if (!handlerCalled) {
+        console.error('⚠️ No handlers were called! Router might not be properly initialized.');
+        console.log('Router object keys:', router ? Object.keys(router) : 'router is null');
+      } else {
+        console.log('✅ Handler was called successfully');
       }
     } catch (error: any) {
       console.error('Error processing activity:', error);
