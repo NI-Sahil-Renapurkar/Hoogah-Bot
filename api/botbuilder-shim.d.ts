@@ -18,6 +18,11 @@ declare module "botbuilder" {
       res: any,
       logic: (context: TurnContext) => Promise<void>
     ): Promise<void>;
+    processActivity(
+      req: any,
+      res: any,
+      logic: (context: TurnContext) => Promise<void>
+    ): Promise<void>;
   }
 }
 

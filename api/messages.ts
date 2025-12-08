@@ -49,13 +49,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   await initializeApp();
 
   try {
-    console.log('[adapter] process start');
-    await adapter.process(req as any, res as any, async (turnContext) => {
+    console.log('[adapter] processActivity start');
+
+    const activity = req.body;
+
+    const webRequest = {
+      body: activity,
+      headers: req.headers,
+      method: req.method,
+      query: req.query,
+    };
+
+    const webResponse = {
+      statusCode: 200,
+      set: () => {},
+      end: () => {},
+      send: () => {},
+    };
+
+    await (adapter as any).processActivity(webRequest as any, webResponse as any, async (turnContext: any) => {
       await runTeamsAppWithTurnContext(turnContext);
     });
-    console.log('[adapter] process end');
+
+    console.log('[adapter] processActivity end');
+    res.status(200).json({ ok: true });
   } catch (err: any) {
-    console.error('[adapter] process error', err);
+    console.error('[adapter] processActivity error', err);
     if (!res.headersSent) {
       res.status(500).json({ error: 'Bot processing error', message: err?.message });
     }
