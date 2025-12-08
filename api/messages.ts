@@ -63,7 +63,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             console.log('Using tenantId:', tenantId);
             
             // Get Bot Framework token for this tenant
-            const token = await getBotFrameworkToken(clientId, clientSecret, tenantId);
+            console.log('About to call getBotFrameworkToken...');
+            const token = await Promise.race([
+              getBotFrameworkToken(clientId, clientSecret, tenantId),
+              new Promise((_, reject) => 
+                setTimeout(() => reject(new Error('Token request timeout after 8 seconds')), 8000)
+              )
+            ]) as string;
+            console.log('Token obtained successfully, length:', token.length);
             
             // Build response activity
             const responseActivity = {
@@ -189,10 +196,19 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
   
   try {
     console.log('Making token request...');
+    console.log('Request body params:', {
+      grant_type: 'client_credentials',
+      client_id: clientId.substring(0, 8) + '...',
+      scope: 'https://api.botframework.com/.default'
+    });
+    
+    const startTime = Date.now();
     const resp = await axios.post(tokenUrl, body, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      timeout: 10000,
+      timeout: 8000, // 8 seconds - less than Vercel's 10s function timeout
     });
+    const duration = Date.now() - startTime;
+    console.log(`Token request completed in ${duration}ms`);
     
     console.log('Token request successful, status:', resp.status);
     const token = resp.data.access_token as string;
@@ -217,13 +233,25 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
   } catch (error: any) {
     console.error('❌ Token request failed:');
     console.error('Error message:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error name:', error.name);
+    
     if (error.response) {
-      console.error('Status:', error.response.status);
+      console.error('Response status:', error.response.status);
+      console.error('Response headers:', JSON.stringify(error.response.headers, null, 2));
       console.error('Response data:', JSON.stringify(error.response.data, null, 2));
-    }
-    if (error.request) {
+    } else if (error.request) {
       console.error('Request made but no response received');
+      console.error('Request config:', JSON.stringify({
+        url: error.config?.url,
+        method: error.config?.method,
+        timeout: error.config?.timeout
+      }, null, 2));
+    } else {
+      console.error('Error setting up request:', error.message);
     }
+    
+    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
     throw error;
   }
 }
