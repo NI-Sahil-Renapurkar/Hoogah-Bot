@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { CloudAdapter, ConfigurationServiceClientCredentialFactory } from 'botbuilder';
+import { CloudAdapter } from 'botbuilder';
 import app, { runTeamsAppWithTurnContext } from '../src/app';
 
 // Initialize app on first import
@@ -13,16 +13,20 @@ async function initializeApp() {
   return app;
 }
 
-// Configure Bot Framework CloudAdapter with Vercel env vars
-const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
-  MicrosoftAppId: process.env.CLIENT_ID || '',
-  MicrosoftAppPassword: process.env.CLIENT_SECRET || '',
-  MicrosoftAppType: "SingleTenant",
-  MicrosoftAppTenantId: process.env.MS_TENANT_ID || '',
-});
+// Map existing env vars to Bot Framework standard names for the JS SDK.
+const appId = process.env.CLIENT_ID ?? '';
+const appPassword = process.env.CLIENT_SECRET ?? '';
+const tenantId = process.env.MS_TENANT_ID ?? '';
 
-// CloudAdapter can be constructed directly with the credentials factory.
-const adapter = new CloudAdapter(credentialsFactory);
+process.env.MicrosoftAppId = appId;
+process.env.MicrosoftAppPassword = appPassword;
+process.env.MicrosoftAppType = "SingleTenant";
+process.env.MicrosoftAppTenantId = tenantId;
+
+// Construct CloudAdapter with env-based configuration (no arguments).
+// Type definitions expect a BotFrameworkAuthentication, but the JS SDK supports env-based construction.
+// @ts-expect-error CloudAdapter can read credentials from environment variables when no args are provided.
+const adapter = new CloudAdapter();
 
 // Global error handler
 adapter.onTurnError = async (context, error) => {
