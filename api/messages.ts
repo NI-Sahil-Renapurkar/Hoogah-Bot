@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { CloudAdapter, ConfigurationServiceClientCredentialFactory, createBotFrameworkAuthenticationFromConfiguration } from 'botbuilder';
+import { CloudAdapter, ConfigurationServiceClientCredentialFactory } from 'botbuilder';
 import app, { runTeamsAppWithTurnContext } from '../src/app';
 
 // Initialize app on first import
@@ -21,12 +21,8 @@ const credentialsFactory = new ConfigurationServiceClientCredentialFactory({
   MicrosoftAppTenantId: process.env.MS_TENANT_ID || '',
 });
 
-const botFrameworkAuthentication = createBotFrameworkAuthenticationFromConfiguration(
-  null,
-  credentialsFactory
-);
-
-const adapter = new CloudAdapter(botFrameworkAuthentication);
+// CloudAdapter can be constructed directly with the credentials factory.
+const adapter = new CloudAdapter(credentialsFactory);
 
 // Global error handler
 adapter.onTurnError = async (context, error) => {
