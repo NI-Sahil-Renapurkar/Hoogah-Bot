@@ -16,26 +16,31 @@ async function initializeApp() {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  // Log immediately - even before method check
+  console.log(`[${new Date().toISOString()}] ${req.method} /api/messages`);
+  
   if (req.method !== 'POST') {
+    console.log('Method not allowed:', req.method);
     return res.status(405).json({ error: 'Method not allowed' });
   }
+
+  // ACK immediately (Bot Framework requirement) - BEFORE processing
+  res.status(200).send('OK');
 
   const teamsApp = await initializeApp();
   
   // Get the activity from request body
   const activity = req.body;
   if (!activity) {
-    return res.status(400).json({ error: 'No activity' });
+    console.error('No activity in request body');
+    return;
   }
 
   // Log incoming activity details for debugging
-  console.log(`[${new Date().toISOString()}] POST /api/messages`);
   console.log('Incoming activity - recipient.id:', activity.recipient?.id);
   console.log('Incoming activity - channelId:', activity.channelId);
   console.log('Incoming activity - serviceUrl:', activity.serviceUrl);
-
-  // ACK immediately (Bot Framework requirement)
-  res.status(200).send('OK');
+  console.log('Incoming activity - text:', activity.text);
 
   // Process in background (async)
   void (async () => {
@@ -64,12 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             
             // Get Bot Framework token for this tenant
             console.log('About to call getBotFrameworkToken...');
-            const token = await Promise.race([
-              getBotFrameworkToken(clientId, clientSecret, tenantId),
-              new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('Token request timeout after 8 seconds')), 8000)
-              )
-            ]) as string;
+            const token = await getBotFrameworkToken(clientId, clientSecret, tenantId);
             console.log('Token obtained successfully, length:', token.length);
             
             // Build response activity
@@ -203,38 +203,17 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
     });
     
     const startTime = Date.now();
-    console.log('Axios post starting at:', new Date().toISOString());
-    console.log('Axios version check - axios available:', typeof axios !== 'undefined');
+    console.log('Making axios request to:', tokenUrl);
     
-    // Create a promise that will timeout
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
-        console.log('⏰ Timeout promise triggered after 6 seconds');
-        reject(new Error('Token request timeout after 6 seconds'));
-      }, 6000);
-    });
-    
-    // Race between the request and timeout
-    const requestPromise = axios.post(tokenUrl, body.toString(), {
+    const resp = await axios.post(tokenUrl, body, {
       headers: { 
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      timeout: 6000,
-      maxRedirects: 0,
-    }).then((response) => {
-      console.log('✅ Axios request promise resolved');
-      return response;
-    }).catch((error) => {
-      console.log('❌ Axios request promise rejected:', error.message);
-      throw error;
+      timeout: 8000,
     });
     
-    console.log('Starting Promise.race...');
-    const resp = await Promise.race([requestPromise, timeoutPromise]) as any;
-    console.log('Promise.race completed');
-    
     const duration = Date.now() - startTime;
-    console.log(`Token request completed in ${duration}ms`);
+    console.log(`Token request completed in ${duration}ms, status: ${resp.status}`);
     
     console.log('Token request successful, status:', resp.status);
     const token = resp.data.access_token as string;
