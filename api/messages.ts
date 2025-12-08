@@ -203,10 +203,36 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
     });
     
     const startTime = Date.now();
-    const resp = await axios.post(tokenUrl, body, {
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      timeout: 8000, // 8 seconds - less than Vercel's 10s function timeout
+    console.log('Axios post starting at:', new Date().toISOString());
+    console.log('Axios version check - axios available:', typeof axios !== 'undefined');
+    
+    // Create a promise that will timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        console.log('⏰ Timeout promise triggered after 6 seconds');
+        reject(new Error('Token request timeout after 6 seconds'));
+      }, 6000);
     });
+    
+    // Race between the request and timeout
+    const requestPromise = axios.post(tokenUrl, body.toString(), {
+      headers: { 
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      timeout: 6000,
+      maxRedirects: 0,
+    }).then((response) => {
+      console.log('✅ Axios request promise resolved');
+      return response;
+    }).catch((error) => {
+      console.log('❌ Axios request promise rejected:', error.message);
+      throw error;
+    });
+    
+    console.log('Starting Promise.race...');
+    const resp = await Promise.race([requestPromise, timeoutPromise]) as any;
+    console.log('Promise.race completed');
+    
     const duration = Date.now() - startTime;
     console.log(`Token request completed in ${duration}ms`);
     
