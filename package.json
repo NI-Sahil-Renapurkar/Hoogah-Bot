@@ -11,7 +11,7 @@
         "dev:teamsfx:launch-testtool": "env-cmd --silent -f env/.env.playground teamsapptester start",
         "dev": "nodemon --exec node --inspect=9239 --signal SIGINT -r ts-node/register ./src/index.ts",
         "build": "tsc --build",
-        "start": "env-cmd -f .env node ./lib/src/index.js",
+        "start": "node index.js",
         "watch": "nodemon --exec \"npm run start\"",
         "test": "echo \"Error: no test specified\" && exit 1"
     },
@@ -25,7 +25,8 @@
         "@microsoft/teams.common": "^2.0.0",
         "@vercel/node": "^3.0.0",
         "axios": "^1.6.0",
-        "botbuilder": "^4.22.2"
+        "botbuilder": "^4.22.2",
+        "express": "^4.19.2"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",
