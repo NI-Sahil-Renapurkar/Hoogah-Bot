@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import app from '../src/app';
 import axios from 'axios';
+import { clear } from 'console';
 
 // Initialize app on first import
 let appInitialized = false;
@@ -204,14 +205,15 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
   params.append("scope", "https://api.botframework.com/.default");
   
   try {
-    console.log('Making token request...');
-    console.log('Request body params:', {
+    console.log('[token] Making token request...');
+    console.log('[token] Request body params:', {
       grant_type: 'client_credentials',
       client_id: clientId.substring(0, 8) + '...',
       client_secret: clientSecret ? '[INCLUDED]' : '[MISSING]',
       scope: 'https://api.botframework.com/.default'
     });
-    console.log('Tenant ID:', tenantId);
+    console.log('[token] Tenant ID:', tenantId);
+    console.log('[token] Client ID:', clientId.substring(0, 8) + '...');
     
     const startTime = Date.now();
     
@@ -224,7 +226,15 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
     });
     
     const duration = Date.now() - startTime;
-    console.log(`✅ Token request completed in ${duration}ms, status: ${resp.status}`);
+    
+    // Log success with structured summary
+    console.log('[token] success', {
+      status: resp.status,
+      token_type: resp.data.token_type || 'unknown',
+      expires_in: resp.data.expires_in || 'unknown',
+      scope: resp.data.scope || 'unknown',
+      duration_ms: duration,
+    });
     
     const token = resp.data.access_token as string;
     
@@ -232,13 +242,7 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
       throw new Error('No access_token in response from Microsoft OAuth endpoint');
     }
     
-    // Log success details (but not the token itself)
-    const tokenType = resp.data.token_type || 'unknown';
-    const expiresIn = resp.data.expires_in || 'unknown';
-    console.log(`✅ Token obtained successfully:`);
-    console.log(`  Token type: ${tokenType}`);
-    console.log(`  Expires in: ${expiresIn} seconds`);
-    console.log(`  Token length: ${token.length} characters`);
+    console.log(`[token] Token obtained, length: ${token.length} characters`);
     
     // Decode and cache token
     const payload = decodeJwtPayload(token);
@@ -247,46 +251,31 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
         token,
         expMs: payload.exp * 1000
       });
-      console.log(`Token cached for tenant ${tenantId} until:`, new Date(payload.exp * 1000).toISOString());
+      console.log(`[token] Token cached for tenant ${tenantId} until:`, new Date(payload.exp * 1000).toISOString());
     }
     
     return token;
-  } catch (error: any) {
-    console.error('❌ Token request failed:');
-    console.error('Tenant ID used:', tenantId);
-    console.error('Token URL:', tokenUrl);
-    console.error('Error message:', error.message);
-    console.error('Error code:', error.code);
-    console.error('Error name:', error.name);
-    
-    if (error.response) {
+  } catch (err: any) {
+    if (err.response) {
       // Non-2xx response from Microsoft
-      const status = error.response.status;
-      const responseData = error.response.data || {};
-      console.error('Response status:', status);
-      console.error('Response body from Microsoft:');
-      console.error('  error:', responseData.error || 'N/A');
-      console.error('  error_description:', responseData.error_description || 'N/A');
-      console.error('  message:', responseData.message || 'N/A');
-      console.error('Full response data:', JSON.stringify(responseData, null, 2));
-      
-      // Create a clear error message
-      const errorMsg = responseData.error_description || responseData.error || `HTTP ${status}`;
-      throw new Error(`Failed to get Bot Framework token from Microsoft (status ${status}): ${errorMsg}`);
-    } else if (error.request) {
-      // Request made but no response received
-      console.error('Request made but no response received from Microsoft');
-      console.error('Request config:', JSON.stringify({
-        url: error.config?.url,
-        method: error.config?.method,
-        timeout: error.config?.timeout
-      }, null, 2));
-      throw new Error(`No response received from Microsoft OAuth endpoint: ${error.message}`);
+      console.error('[token] FAILED', {
+        status: err.response.status,
+        data: err.response.data,
+        tenantId: tenantId,
+        clientId: clientId.substring(0, 8) + '...',
+        message: err.message,
+      });
     } else {
-      // Error setting up request
-      console.error('Error setting up request:', error.message);
-      throw new Error(`Failed to setup token request: ${error.message}`);
+      // No response received or other error
+      console.error('[token] FAILED – no response', {
+        message: err.message,
+        tenantId: tenantId,
+        clientId: clientId.substring(0, 8) + '...',
+        error_code: err.code,
+        error_name: err.name,
+      });
     }
+    throw err;
   }
 }
 
@@ -296,12 +285,14 @@ async function sendToConversation(activity: any, token: string, responseActivity
   const convId = activity.conversation.id;
   const url = `${serviceUrl}/v3/conversations/${encodeURIComponent(convId)}/activities`;
   
-  console.log('📨 Sending response to Bot Framework Connector');
-  console.log('Service URL:', serviceUrl);
-  console.log('Conversation ID:', convId);
-  console.log('URL:', url);
-  console.log('Response activity type:', responseActivity.type);
-  console.log('Response has attachments:', !!responseActivity.attachments);
+  console.log('[send] Preparing to send response to Bot Framework Connector');
+  console.log('[send] Service URL:', serviceUrl);
+  console.log('[send] Conversation ID:', convId);
+  console.log('[send] Exact URL:', url);
+  console.log('[send] HTTP Method: POST');
+  console.log('[send] Response activity type:', responseActivity.type);
+  console.log('[send] Response has attachments:', !!responseActivity.attachments);
+  console.log('[send] Authorization header:', `Bearer ${token.substring(0, 20)}...`);
   
   try {
     // Use the FULL token in the Authorization header (not truncated!)
@@ -314,24 +305,50 @@ async function sendToConversation(activity: any, token: string, responseActivity
       validateStatus: () => true,
     });
     
-    console.log('Bot Framework response status:', response.status);
+    console.log('[send] HTTP Status:', response.status);
     
     if (response.status < 200 || response.status >= 300) {
-      console.error("❌ Non-2xx response from Bot Framework Connector:");
-      console.error("Status:", response.status);
-      console.error("Response body:", JSON.stringify(response.data, null, 2));
+      // Non-2xx response
+      console.error('[send] FAILED', {
+        status: response.status,
+        data: response.data,
+        url: url,
+      });
       throw new Error(`Bot Framework Connector returned status ${response.status}`);
     }
     
-    console.log('✅ Successfully sent to Bot Framework Connector');
-  } catch (error: any) {
-    console.error('❌ Error sending to Bot Framework Connector:');
-    console.error('Error message:', error.message);
-    if (error.response) {
-      console.error('Status:', error.response.status);
-      console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+    // Success - log response summary
+    const responseSummary: any = {
+      status: response.status,
+    };
+    
+    if (response.data) {
+      if (response.data.id) responseSummary.activityId = response.data.id;
+      if (response.data.activityId) responseSummary.activityId = response.data.activityId;
+      if (response.data.serviceUrl) responseSummary.serviceUrl = response.data.serviceUrl;
     }
-    throw error;
+    
+    console.log('[send] success', responseSummary);
+    console.log('[send] ✅ Successfully sent to Bot Framework Connector');
+  } catch (err: any) {
+    if (err.response) {
+      // Non-2xx response or error response
+      console.error('[send] FAILED', {
+        status: err.response.status,
+        data: err.response.data,
+        url: url,
+        message: err.message,
+      });
+    } else {
+      // No response received or other error
+      console.error('[send] FAILED – no response', {
+        message: err.message,
+        url: url,
+        error_code: err.code,
+        error_name: err.name,
+      });
+    }
+    throw err;
   }
 }
 
