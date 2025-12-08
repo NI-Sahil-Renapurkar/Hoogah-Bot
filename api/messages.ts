@@ -53,12 +53,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const activity = req.body;
 
-    const webRequest = {
+    const webRequest: any = {
       body: activity,
       headers: req.headers,
       method: req.method,
       query: req.query,
+      serviceUrl: activity?.serviceUrl,
     };
+
+    if (activity && activity.serviceUrl) {
+      webRequest.body.serviceUrl = activity.serviceUrl;
+    }
 
     const webResponse = {
       statusCode: 200,
