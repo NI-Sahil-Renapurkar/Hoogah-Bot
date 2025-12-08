@@ -45,8 +45,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Process in background (async)
   void (async () => {
     try {
-      const clientId = process.env.CLIENT_ID || process.env.BOT_ID || '';
-      const clientSecret = process.env.CLIENT_SECRET || process.env.BOT_PASSWORD || process.env.CLIENT_PASSWORD || process.env.SECRET_BOT_PASSWORD || '';
+      // Use specific environment variable names as requested
+      const clientId = process.env.CLIENT_ID;
+      const clientSecret = process.env.CLIENT_SECRET;
+      const tenantId = process.env.MS_TENANT_ID || activity.channelData?.tenant?.id;
+
+      if (!clientId) {
+        console.error('❌ CLIENT_ID environment variable is not set');
+        throw new Error('CLIENT_ID environment variable must be set');
+      }
+      if (!clientSecret) {
+        console.error('❌ CLIENT_SECRET environment variable is not set');
+        throw new Error('CLIENT_SECRET environment variable must be set');
+      }
+      if (!tenantId) {
+        console.error('❌ MS_TENANT_ID environment variable is not set and tenant ID not found in activity');
+        throw new Error('MS_TENANT_ID environment variable must be set (or tenant ID must be in activity.channelData.tenant.id)');
+      }
+
+      console.log('✅ Environment variables loaded:');
+      console.log('  CLIENT_ID:', clientId.substring(0, 8) + '...');
+      console.log('  CLIENT_SECRET:', clientSecret ? '[SET]' : '[MISSING]');
+      console.log('  MS_TENANT_ID:', tenantId);
 
       // Create context with send function
       const context: any = {
@@ -56,17 +76,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           console.log('Response type:', response.type);
           console.log('Response attachments:', response.attachments?.length || 0);
           try {
-            if (!clientId || !clientSecret) {
-              throw new Error('CLIENT_ID and CLIENT_SECRET must be set');
-            }
-            
-            // Extract tenantId from activity
-            const tenantId = activity.channelData?.tenant?.id || process.env.MS_TENANT_ID;
-            if (!tenantId) {
-              throw new Error('Tenant ID not found in activity.channelData.tenant.id and MS_TENANT_ID not set');
-            }
-            console.log('Using tenantId:', tenantId);
-            
             // Get Bot Framework token for this tenant
             console.log('About to call getBotFrameworkToken...');
             const token = await getBotFrameworkToken(clientId, clientSecret, tenantId);
@@ -187,42 +196,49 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
   console.log(`Token URL: ${tokenUrl}`);
   console.log(`Client ID: ${clientId.substring(0, 8)}...`);
   
-  const body = new URLSearchParams({
-    grant_type: "client_credentials",
-    client_id: clientId,
-    client_secret: clientSecret,
-    scope: "https://api.botframework.com/.default",
-  });
+  // Build form-encoded request body with ALL required fields
+  const params = new URLSearchParams();
+  params.append("grant_type", "client_credentials");
+  params.append("client_id", clientId);
+  params.append("client_secret", clientSecret);
+  params.append("scope", "https://api.botframework.com/.default");
   
   try {
     console.log('Making token request...');
     console.log('Request body params:', {
       grant_type: 'client_credentials',
       client_id: clientId.substring(0, 8) + '...',
+      client_secret: clientSecret ? '[INCLUDED]' : '[MISSING]',
       scope: 'https://api.botframework.com/.default'
     });
+    console.log('Tenant ID:', tenantId);
     
     const startTime = Date.now();
-    console.log('Making axios request to:', tokenUrl);
     
-    const resp = await axios.post(tokenUrl, body, {
+    // Make the token request with proper form-encoded body
+    const resp = await axios.post(tokenUrl, params.toString(), {
       headers: { 
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      timeout: 8000,
+      timeout: 10000,
     });
     
     const duration = Date.now() - startTime;
-    console.log(`Token request completed in ${duration}ms, status: ${resp.status}`);
+    console.log(`✅ Token request completed in ${duration}ms, status: ${resp.status}`);
     
-    console.log('Token request successful, status:', resp.status);
     const token = resp.data.access_token as string;
     
     if (!token) {
-      throw new Error('No access_token in response');
+      throw new Error('No access_token in response from Microsoft OAuth endpoint');
     }
     
-    console.log('Token received, length:', token.length);
+    // Log success details (but not the token itself)
+    const tokenType = resp.data.token_type || 'unknown';
+    const expiresIn = resp.data.expires_in || 'unknown';
+    console.log(`✅ Token obtained successfully:`);
+    console.log(`  Token type: ${tokenType}`);
+    console.log(`  Expires in: ${expiresIn} seconds`);
+    console.log(`  Token length: ${token.length} characters`);
     
     // Decode and cache token
     const payload = decodeJwtPayload(token);
@@ -237,27 +253,40 @@ async function getBotFrameworkToken(clientId: string, clientSecret: string, tena
     return token;
   } catch (error: any) {
     console.error('❌ Token request failed:');
+    console.error('Tenant ID used:', tenantId);
+    console.error('Token URL:', tokenUrl);
     console.error('Error message:', error.message);
     console.error('Error code:', error.code);
     console.error('Error name:', error.name);
     
     if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response headers:', JSON.stringify(error.response.headers, null, 2));
-      console.error('Response data:', JSON.stringify(error.response.data, null, 2));
+      // Non-2xx response from Microsoft
+      const status = error.response.status;
+      const responseData = error.response.data || {};
+      console.error('Response status:', status);
+      console.error('Response body from Microsoft:');
+      console.error('  error:', responseData.error || 'N/A');
+      console.error('  error_description:', responseData.error_description || 'N/A');
+      console.error('  message:', responseData.message || 'N/A');
+      console.error('Full response data:', JSON.stringify(responseData, null, 2));
+      
+      // Create a clear error message
+      const errorMsg = responseData.error_description || responseData.error || `HTTP ${status}`;
+      throw new Error(`Failed to get Bot Framework token from Microsoft (status ${status}): ${errorMsg}`);
     } else if (error.request) {
-      console.error('Request made but no response received');
+      // Request made but no response received
+      console.error('Request made but no response received from Microsoft');
       console.error('Request config:', JSON.stringify({
         url: error.config?.url,
         method: error.config?.method,
         timeout: error.config?.timeout
       }, null, 2));
+      throw new Error(`No response received from Microsoft OAuth endpoint: ${error.message}`);
     } else {
+      // Error setting up request
       console.error('Error setting up request:', error.message);
+      throw new Error(`Failed to setup token request: ${error.message}`);
     }
-    
-    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
-    throw error;
   }
 }
 
@@ -275,9 +304,10 @@ async function sendToConversation(activity: any, token: string, responseActivity
   console.log('Response has attachments:', !!responseActivity.attachments);
   
   try {
+    // Use the FULL token in the Authorization header (not truncated!)
     const response = await axios.post(url, responseActivity, {
       headers: {
-        Authorization: `Bearer ${token.substring(0, 20)}...`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       timeout: 10000,
