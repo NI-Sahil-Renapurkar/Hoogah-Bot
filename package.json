@@ -24,7 +24,8 @@
         "@microsoft/teams.apps": "^2.0.0",
         "@microsoft/teams.common": "^2.0.0",
         "@vercel/node": "^3.0.0",
-        "axios": "^1.6.0"
+        "axios": "^1.6.0",
+        "botbuilder": "^4.22.2"
     },
     "devDependencies": {
         "@types/node": "^20.0.0",
