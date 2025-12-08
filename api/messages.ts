@@ -52,10 +52,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log('[adapter] processActivity start');
 
     const activity = req.body;
+    const authHeader =
+      (req.headers as any)["authorization"] ||
+      (req.headers as any)["Authorization"] ||
+      (req.headers as any)["x-ms-bot-auth"] ||
+      null;
 
     const webRequest: any = {
       body: activity,
-      headers: req.headers,
+      headers: {
+        ...(req.headers as any),
+        authorization: authHeader,
+      },
       method: req.method,
       query: req.query,
       serviceUrl: activity?.serviceUrl,
@@ -63,6 +71,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (activity && activity.serviceUrl) {
       webRequest.body.serviceUrl = activity.serviceUrl;
+    }
+
+    if (authHeader) {
+      webRequest.body.authorization = authHeader;
     }
 
     const webResponse = {
